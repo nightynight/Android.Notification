@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>Android.notification by nightynight</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">Android.notification</h1>
+      <h2 class="project-tagline"></h2>
+      <a href="https://github.com/nightynight/Android.Notification" class="btn">View on GitHub</a>
+      <a href="https://github.com/nightynight/Android.Notification/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/nightynight/Android.Notification/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <h3>
+<a id="本文展示一个功能类似闹钟的demo说明notification的使用" class="anchor" href="#%E6%9C%AC%E6%96%87%E5%B1%95%E7%A4%BA%E4%B8%80%E4%B8%AA%E5%8A%9F%E8%83%BD%E7%B1%BB%E4%BC%BC%E9%97%B9%E9%92%9F%E7%9A%84demo%E8%AF%B4%E6%98%8Enotification%E7%9A%84%E4%BD%BF%E7%94%A8" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>本文展示一个功能类似闹钟的Demo，说明Notification的使用。</h3>
+
+<p>本文用到的常量以及字符串如下：
+常量：</p>
+
+<pre><code>public final class CommonConstants {
+
+    private CommonConstants() {
+        // don't allow the class to be instantiated
+    }
+    public static final int DEFAULT_TIMER_DURATION = 3 * 1000;
+    public static final String ACTION_SNOOZE = "com.example.administrator.notificationdemo.ACTION_SNOOZE";
+    public static final String ACTION_DISMISS = "com.example.administrator.notificationdemo.ACTION_DISMISS";
+    public static final String ACTION_NOTIFICATION = "com.example.administrator.notificationdemo.ACTION_PING";
+    public static final String EXTRA_MESSAGE= "com.example.administrator.notificationdemo.EXTRA_MESSAGE";
+    public static final String EXTRA_TIMER = "com.example.administrator.notificationdemo.EXTRA_TIMER";
+    public static final int NOTIFICATION_ID = 001;
+    public static final String DEBUG_TAG = "Notification";
+}
+</code></pre>
+
+<p>先来看看布局文件：</p>
+
+<pre><code>&lt;?xml version="1.0" encoding="utf-8"?&gt;
+&lt;RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent" &gt;
+
+    &lt;TextView
+        android:id="@+id/seconds_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="32dp"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:text="@string/set_second_text" /&gt;
+
+    &lt;EditText
+        android:id="@+id/edit_seconds"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/seconds_view"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="15dp"
+        android:ems="10"
+        android:text="@string/seconds_default"
+        android:inputType="numberSigned"&gt;
+
+        &lt;requestFocus /&gt;
+    &lt;/EditText&gt;
+
+    &lt;TextView
+        android:id="@+id/reminder_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/edit_seconds"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="40dp"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:text="@string/reminder_label" /&gt;
+
+    &lt;EditText
+        android:id="@+id/edit_reminder"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/edit_seconds"
+        android:layout_below="@+id/reminder_view"
+        android:layout_marginTop="15dp"
+        android:ems="10"
+        android:text="@string/reminder_text"
+        android:inputType="textMultiLine" /&gt;
+
+    &lt;Button
+        android:id="@+id/ping_button"
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/edit_reminder"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="25dp"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:onClick="onPingClick"
+        android:text="@string/set_reminder" /&gt;
+
+&lt;/RelativeLayout&gt;
+</code></pre>
+
+<p>另外还有一个点击了通知栏后显示的Activity的布局文件：</p>
+
+<pre><code>&lt;?xml version="1.0" encoding="utf-8"?&gt;
+&lt;RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent" &gt;
+
+    &lt;TextView
+        android:id="@+id/result_message"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_centerInParent="true"
+        android:textAppearance="?android:attr/textAppearanceMedium" /&gt;
+
+    &lt;RelativeLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/result_message"
+        android:layout_centerInParent="true" &gt;
+
+      &lt;Button
+          android:id="@+id/dismiss_button"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:onClick="onDismissClick"
+          android:text="@string/dismiss" /&gt;
+
+      &lt;Button
+          android:id="@+id/snooze_button"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_alignBottom="@+id/dismiss_button"
+          android:layout_toRightOf="@+id/dismiss_button"
+          android:onClick="onSnoozeClick"
+          android:text="@string/snooze" /&gt;
+      &lt;/RelativeLayout&gt;
+&lt;/RelativeLayout&gt;
+</code></pre>
+
+<p>再来看一下MainActivity：</p>
+
+<pre><code>public class MainActivity extends AppCompatActivity {
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+    }
+
+    //点击Button后执行的函数
+    public void onPingClick(View v){
+        //拿到输入的值
+        EditText edit_seconds=(EditText)findViewById(R.id.edit_seconds);
+        String time=edit_seconds.getText().toString();
+        EditText edit_reminder=(EditText)findViewById(R.id.edit_reminder);
+        String reminderText=edit_reminder.getText().toString();
+
+        int seconds=(time == null || time.trim().equals(""))?R.string.seconds_default:Integer.parseInt(time);
+        int milliseconds = seconds * 1000;
+
+        //生成一个intent，用来启动Service，在Service中设置通知
+        Intent intent=new Intent(this,NotificationService.class);
+        intent.putExtra(CommonConstants.EXTRA_MESSAGE,reminderText);
+        intent.putExtra(CommonConstants.EXTRA_TIMER, milliseconds);
+        intent.setAction(CommonConstants.ACTION_NOTIFICATION);
+        startService(intent);
+    }
+}
+</code></pre>
+
+<p>MainActivity把intent传给NotificationService，具体的通知设置都在这个Service中：</p>
+
+<pre><code>public class NotificationService extends IntentService {
+    private NotificationManager mNotificationManager;
+    private String mMessage;
+    private int mMillis;
+    private NotificationCompat.Builder builder;
+
+    public NotificationService() {
+        super("com.example.administrator.notificationdemo");
+    }
+
+    @Override
+    protected void onHandleIntent(Intent intent) {
+        //从intent中获取消息内容
+        mMessage = intent.getStringExtra(CommonConstants.EXTRA_MESSAGE);
+        //从intent中获取时间，默认为CommonConstants.DEFAULT_TIMER_DURATION
+        mMillis = intent.getIntExtra(CommonConstants.EXTRA_TIMER, CommonConstants.DEFAULT_TIMER_DURATION);
+
+        mNotificationManager = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
+
+        //Intent可能是从MainActivity或ResultActivity传过来的，
+        // MainActivity传过来的Action是ACTION_NOTIFICATION，
+        // ResultActivity传过来的Action是ACTION_SNOOZE或ACTION_DISMISS。
+        switch (intent.getAction()){
+            case CommonConstants.ACTION_NOTIFICATION:   notification(mMillis, mMessage);    break;
+            case CommonConstants.ACTION_SNOOZE:   snooze();    break;
+            case CommonConstants.ACTION_DISMISS:   dismiss();    break;
+        }
+    }
+
+    private void notification(int mMillis,String message){
+        //NotificationCompat.Builder给许多各种不同的平台提供notification支持
+        //创建Builder对象，
+        /*
+        一个Builder至少包含以下内容：
+            1.一个小的icon，用setSmallIcon())方法设置
+            2.一个标题，用setContentTitle())方法设置
+            3.详细的文本，用setContentText())方法设置
+         */
+        builder = new NotificationCompat.Builder(this)
+                .setSmallIcon(R.drawable.ic_stat_notification)  //设置了之后没效果，还是显示应用图标？
+                .setContentTitle(getString(R.string.notification))
+                .setContentText(getString(R.string.set_reminder))
+                .setDefaults(Notification.DEFAULT_ALL); // requires VIBRATE permission
+
+        Intent resultIntent = new Intent(this, ResultActivity.class);
+        resultIntent.putExtra(CommonConstants.EXTRA_MESSAGE, message);
+        resultIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        //通过调用setFlags())方法并设置标识FLAG_ACTIVITY_NEW_TASK 与 FLAG_ACTIVITY_CLEAR_TASK，来设置Activity在一个新的任务中启动
+
+        //设置点击了通知栏后要做什么事
+        // 这里是打开ResultActivity
+        PendingIntent resultPendingIntent =
+                PendingIntent.getActivity(
+                        this,   // Context: The Context in which this PendingIntent should start the activity.
+                        0,  //int: Private request code for the sender
+                        resultIntent,   //Intent: Intent of the activities to be launched.
+                        PendingIntent.FLAG_UPDATE_CURRENT   //int: May be FLAG_ONE_SHOT, FLAG_NO_CREATE, FLAG_CANCEL_CURRENT, FLAG_UPDATE_CURRENT, or any of the flags as supported by Intent.fillIn() to control which unspecified parts of the intent that can be supplied when the actual send happens.
+                );
+        builder.setContentIntent(resultPendingIntent);
+        startTimer(mMillis);
+    }
+
+    private void snooze(){
+        if (true){
+            //TODO 如何判断通知有没有被cancel
+            notification(CommonConstants.DEFAULT_TIMER_DURATION, getString(R.string.done_snoozing));
+        }
+    }
+
+    private void dismiss(){
+        mNotificationManager.cancel(CommonConstants.NOTIFICATION_ID);
+    }
+
+    private void startTimer(int millis) {
+        try {
+            Thread.sleep(millis);
+
+        } catch (InterruptedException e) {
+            Log.d(CommonConstants.DEBUG_TAG, getString(R.string.sleep_error));
+        }
+        // Including the notification ID allows you to update the notification later on.
+        //通知消息栏
+        mNotificationManager.notify(CommonConstants.NOTIFICATION_ID, builder.build());
+    }
+
+    private void downPicture(){
+        //下面的线程展示了如何在Notification中放入ProgressBar
+        /*
+        Notifications可以包含一个展示用户正在进行的操作状态的动画进度指示器。
+        如果你可以在任何时候估算这个操作得花多少时间以及当前已经完成多少，你可以用“determinate（确定的，下同）”形式的指示器（一个进度条）。
+        如果你不能估算这个操作的长度，使用“indeterminate（不确定，下同）”形式的指示器（一个活动的指示器）。
+
+        为了展示一个确定长度的进度条，调用 setProgress(max, progress, false))方法将进度条添加进notification，然后发布这个notification，
+        第三个参数是个boolean类型，决定进度条是 indeterminate (true) 还是 determinate (false)。
+        */
+        new Thread(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        int id = 1;
+                        NotificationManager mNotifyManager =
+                                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(getApplicationContext());
+                        mBuilder.setContentTitle("Picture Download")
+                                .setContentText("Download in progress")
+                                .setSmallIcon(R.drawable.ic_stat_notification);
+                        int incr;
+                        for (incr = 0; incr &lt;= 100;) {
+                            try {
+                                Thread.sleep(500);  //每0.5秒更新一次ProgressBar
+                            } catch (InterruptedException e) {
+                                Log.d("TAG", "sleep failure");
+                            }
+                            mBuilder.setProgress(100, incr, false);
+                            // Displays the progress bar for the first time.
+                            mNotifyManager.notify(id, mBuilder.build());
+                            incr+=5;    //实际情况是获取下载的进度
+                        }
+                        // When the loop is finished, updates the notification
+                        mBuilder.setContentText("Download complete")
+                                // Removes the progress bar
+                                .setProgress(0,0,false);
+                        mNotifyManager.notify(id, mBuilder.build());
+                    }
+                }
+        ).start();
+    }
+}
+</code></pre>
+
+<p>最后，看一下点击通知栏后显示的Activity：</p>
+
+<pre><code>public class ResultActivity extends Activity {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_result);
+
+        String message = getIntent().getStringExtra(CommonConstants.EXTRA_MESSAGE);
+        TextView text = (TextView) findViewById(R.id.result_message);
+        text.setText(message);
+    }
+    public void onSnoozeClick(View v){
+        Intent intent = new Intent(getApplicationContext(), NotificationService.class);
+        intent.setAction(CommonConstants.ACTION_SNOOZE);
+        startService(intent);
+    }
+
+    public  void onDismissClick(View v){
+        Intent intent = new Intent(getApplicationContext(), NotificationService.class);
+        intent.setAction(CommonConstants.ACTION_DISMISS);
+        startService(intent);
+    }
+}
+</code></pre>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/nightynight/Android.Notification">Android.notification</a> is maintained by <a href="https://github.com/nightynight">nightynight</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
